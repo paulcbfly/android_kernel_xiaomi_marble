@@ -1,0 +1,49 @@
+name: Build ReSukiSU Kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: resukisu-dev
+          submodules: recursive
+
+      - name: Install deps
+        run: |
+          sudo apt update
+          sudo apt install -y git curl bc bison flex libssl-dev make clang lld llvm zip unzip p7zip-full python3
+
+      - name: Setup ReSukiSU dev
+        run: |
+          curl -LSs https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/dev/kernel/setup.sh | bash -
+          echo "Check ReSukiSU configs:"
+          grep -R "CONFIG_KSU\|CONFIG_KPM\|SUSFS" arch/arm64/configs/ || true
+
+      - name: Build kernel
+        run: |
+          BUILD_CONFIG=build.config.gki ./build/build.sh -j$(nproc)
+
+      - name: Find Image
+        run: |
+          find out -type f -name "Image" -o -name "Image.gz" -o -name "Image.lz4"
+
+      - name: Pack Image.7z
+        run: |
+          IMG=$(find out -type f -name "Image" | head -n 1)
+          test -n "$IMG"
+          mkdir -p output
+          cp "$IMG" output/Image
+          cd output
+          7z a -t7z Image.7z Image
+
+      - name: Upload Image.7z
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image.7z
+          path: output/Image.7z
