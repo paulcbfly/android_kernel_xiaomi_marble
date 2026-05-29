@@ -25,10 +25,21 @@ jobs:
           echo "Check ReSukiSU configs:"
           grep -R "CONFIG_KSU\|CONFIG_KPM\|SUSFS" arch/arm64/configs/ || true
 
-      - name: Build kernel
-        run: |
-          BUILD_CONFIG=build.config.gki ./build/build.sh -j$(nproc)
+- name: Build kernel
+  run: |
+    echo "===== ROOT ====="
+    ls -la
 
+    echo "===== BUILD SCRIPTS ====="
+    find . -maxdepth 3 -type f | grep -E "build.*\.sh|.*build\.sh"
+
+    echo "===== BUILD CONFIG ====="
+    find . -name "build.config*"
+
+    echo "===== BAZEL ====="
+    find . -name "WORKSPACE" -o -name "MODULE.bazel"
+
+    exit 1
       - name: Find Image
         run: |
           find out -type f -name "Image" -o -name "Image.gz" -o -name "Image.lz4"
