@@ -27,6 +27,14 @@ jobs:
           find . -type d | grep -i "kernelsu" || true
           grep -R "CONFIG_KSU\|CONFIG_KPM\|SUSFS" arch/arm64/configs/ || true
 
+          echo "===== ReSukiSU VERSION ====="
+          if [ -d KernelSU ]; then
+            cd KernelSU
+            git rev-parse HEAD || true
+            git log -1 --oneline || true
+            cd ..
+          fi
+
       - name: Build kernel
         run: |
           export ARCH=arm64
@@ -35,20 +43,36 @@ jobs:
           export LLVM_IAS=1
           export O=out
 
-          echo "===== DEFCONFIG ====="
-          find arch/arm64/configs -type f | grep -i "gki\|waipio\|marble" || true
+          echo "===== MEMORY ====="
+          free -h
 
+          echo "===== DEFCONFIG ====="
           make O=out \
             ARCH=arm64 \
             LLVM=1 \
             LLVM_IAS=1 \
             gki_defconfig
 
+          echo "===== DISABLE LTO ====="
+          scripts/config \
+            --file out/.config \
+            -d LTO \
+            -d LTO_CLANG \
+            -d THINLTO \
+            -d LTO_CLANG_THIN
+
           make O=out \
             ARCH=arm64 \
             LLVM=1 \
             LLVM_IAS=1 \
-            -j2 \
+            olddefconfig
+
+          echo "===== BUILD IMAGE ====="
+          make O=out \
+            ARCH=arm64 \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            -j1 \
             Image
 
       - name: Find Image
