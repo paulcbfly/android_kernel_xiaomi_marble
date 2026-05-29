@@ -10,47 +10,56 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: resukisu-dev
-          submodules: recursive
 
       - name: Install deps
         run: |
           sudo apt update
-          sudo apt install -y git curl bc bison flex libssl-dev make clang lld llvm zip unzip p7zip-full python3
+          sudo apt install -y \
+            git curl bc bison flex \
+            libssl-dev make clang lld llvm \
+            zip unzip p7zip-full python3
 
-      - name: Setup ReSukiSU dev
+      - name: Setup ReSukiSU
         run: |
           curl -LSs https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/dev/kernel/setup.sh | bash -
-          echo "Check ReSukiSU configs:"
-          grep -R "CONFIG_KSU\|CONFIG_KPM\|SUSFS" arch/arm64/configs/ || true
 
-      - name: Inspect build system
+      - name: Build kernel
         run: |
-          echo "===== ROOT ====="
-          ls -la
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export LLVM=1
+          export LLVM_IAS=1
+          export O=out
 
-          echo "===== BUILD SCRIPTS ====="
-          find . -maxdepth 3 -type f | grep -E "build.*\.sh|.*build\.sh" || true
+          echo "===== DEFCONFIG ====="
+          find arch/arm64/configs -type f | grep -i marble || true
+          find arch/arm64/configs -type f | grep -i waipio || true
 
-          echo "===== BUILD CONFIG ====="
-          find . -name "build.config*" || true
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 gki_defconfig
 
-          echo "===== BAZEL ====="
-          find . -name "WORKSPACE" -o -name "MODULE.bazel" || true
-
-          exit 1
+          make O=out \
+            ARCH=arm64 \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            -j$(nproc) \
+            Image
 
       - name: Find Image
         run: |
-          find out -type f \( -name "Image" -o -name "Image.gz" -o -name "Image.lz4" \)
+          echo "===== SEARCH IMAGE ====="
+          find . -type f \( -name "Image" -o -name "Image.gz" -o -name "Image.lz4" \)
 
       - name: Pack Image.7z
         run: |
-          IMG=$(find out -type f -name "Image" | head -n 1)
+          IMG=$(find . -type f -name Image | head -n 1)
+
+          echo "IMAGE=$IMG"
+
           test -n "$IMG"
+
           mkdir -p output
           cp "$IMG" output/Image
+
           cd output
           7z a -t7z Image.7z Image
 
