@@ -23,6 +23,10 @@ jobs:
         run: |
           curl -LSs https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/dev/kernel/setup.sh | bash -
 
+          echo "===== Check ReSukiSU ====="
+          find . -type d | grep -i "kernelsu" || true
+          grep -R "CONFIG_KSU\|CONFIG_KPM\|SUSFS" arch/arm64/configs/ || true
+
       - name: Build kernel
         run: |
           export ARCH=arm64
@@ -32,26 +36,29 @@ jobs:
           export O=out
 
           echo "===== DEFCONFIG ====="
-          find arch/arm64/configs -type f | grep -i marble || true
-          find arch/arm64/configs -type f | grep -i waipio || true
-
-          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 gki_defconfig
+          find arch/arm64/configs -type f | grep -i "gki\|waipio\|marble" || true
 
           make O=out \
             ARCH=arm64 \
             LLVM=1 \
             LLVM_IAS=1 \
-            -j$(nproc) \
+            gki_defconfig
+
+          make O=out \
+            ARCH=arm64 \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            -j2 \
             Image
 
       - name: Find Image
         run: |
           echo "===== SEARCH IMAGE ====="
-          find . -type f \( -name "Image" -o -name "Image.gz" -o -name "Image.lz4" \)
+          find out -type f \( -name "Image" -o -name "Image.gz" -o -name "Image.lz4" \)
 
       - name: Pack Image.7z
         run: |
-          IMG=$(find . -type f -name Image | head -n 1)
+          IMG=$(find out -type f -name Image | head -n 1)
 
           echo "IMAGE=$IMG"
 
